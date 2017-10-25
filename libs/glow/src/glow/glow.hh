@@ -1,5 +1,19 @@
 #pragma once
 
+// it's easy to mix Debug and Release on windows
+// this should catch the most obvious errors
+#ifdef GLOW_COMPILER_MSVC
+#ifdef _DEBUG
+#ifndef GLOW_DEBUG
+#error Visual Studio is set to debug but CMake is not. Settings must match.
+#endif
+#else
+#ifdef GLOW_DEBUG
+#error CMake is set to debug but Visual Studio is not. Settings must match.
+#endif
+#endif
+#endif
+
 namespace glow
 {
 /// OpenGL Version information

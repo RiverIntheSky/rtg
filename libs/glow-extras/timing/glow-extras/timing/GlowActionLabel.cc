@@ -1,5 +1,6 @@
 #include "GlowActionLabel.hh"
 
+#include <algorithm>
 #include <iostream>
 
 #include <aion/common/format.hh>

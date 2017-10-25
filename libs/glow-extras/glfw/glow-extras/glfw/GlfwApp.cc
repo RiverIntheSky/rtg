@@ -498,6 +498,36 @@ int GlfwApp::run(int argc, char *argv[])
     // Make the window's context current
     glfwMakeContextCurrent(mWindow);
 
+    // WORKAROUND for Intel bug (3.3 available but 3.0 returned UNLESS explicitly requested)
+    using glGetIntegerFunc = void(GLenum, GLint*);
+    auto getGlInt = (glGetIntegerFunc*)glfwGetProcAddress("glGetIntegerv");
+    GLint gmajor, gminor;
+    getGlInt(GL_MAJOR_VERSION, &gmajor);
+    getGlInt(GL_MINOR_VERSION, &gminor);
+    if (gmajor * 10 + gminor < 33)
+    {
+        // destroy current window
+        glfwDestroyWindow(mWindow);
+
+        // request vanilla 3.3 context
+        glfwDefaultWindowHints();
+        glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_FALSE);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+
+        // re-try window creation
+        mWindow = glfwCreateWindow(mWindowWidth, mWindowHeight, mTitle.c_str(), NULL, NULL);
+        if (!mWindow)
+        {
+            std::cerr << "Unable to create a GLFW window with OpenGL 3.3. (GLOW requires at least 3.3)" << std::endl;
+            glfwTerminate();
+            return -1;
+        }
+
+        // Make the window's context current (again)
+        glfwMakeContextCurrent(mWindow);
+    }
+
     // Initialize GLOW
     if (!glow::initGLOW())
     {
