@@ -171,13 +171,13 @@ void Assignment01::generateTask()
 
     std::sort(begin(group), end(group), [](Student const& s1, Student const& s2) { return s1.nr < s2.nr; });
 
-    auto valCombine = [](size_t seed, size_t h) { return seed ^ (h + 0x9e3779b9 + (seed << 6) + (seed >> 2)); };
+    auto valCombine = [](uint64_t seed, uint64_t h) { return seed ^ (h + 0x9e3779b9 + (seed << 6) + (seed >> 2)); };
 
-    size_t hash = 42;
+    uint64_t hash = 42;
     for (auto const& s : group)
         hash = valCombine(hash, s.nr);
 
-    std::vector<size_t> chunks;
+    std::vector<uint64_t> chunks;
     switch (hash % 3)
     {
     case 0:
