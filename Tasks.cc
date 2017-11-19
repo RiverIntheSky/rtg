@@ -311,7 +311,103 @@ float ai::task3(size_t paddleIdx,
     ///     - you may take a look at simpleAI(). It should be easy to beat if you've done 2a-2c.
     ///
     /// ============= STUDENT CODE BEGIN =============
+    auto maxAccel = params.paddleMaxAcceleration;
+//    std::vector<float> hit_t_(balls.size());
+//    std::vector<float> hit_y_(balls.size());
 
+    struct ballData {
+        float hit_t;
+        float hit_y;
+    } b;
+
+    std::vector<ballData> bds;
+
+    for (auto ball: balls) {
+        glow::info() << "how many balls" << ball.transform->velocity.x;
+        if(ball.transform->velocity.x < 0) {
+            auto hit_x = paddle.transform->position.x + ball.shape->radius + paddle.shape->halfExtent.x;
+            b.hit_t = (hit_x - ball.transform->position.x) / ball.transform->velocity.x;
+
+            // compute hit_y
+            b.hit_y = ball.transform->position.y + ball.transform->velocity.y * b.hit_t;
+
+            auto period = 2 * params.fieldHeight - 4 * ball.shape->radius;
+            while (b.hit_y > (period + ball.shape->radius))
+                b.hit_y -= period;
+            while (b.hit_y < ball.shape->radius)
+                b.hit_y += period;
+
+//            glm::vec2 reflected_v = {-ball.transform->velocity.x, ball.transform->velocity.y};
+            if (b.hit_y > (period/2 + ball.shape->radius)) {
+                b.hit_y = period + 2 * ball.shape->radius - b.hit_y;
+//                reflected_v = {-ball.transform->velocity.x, -ball.transform->velocity.y};
+            }
+            bds.push_back(b);
+        }
+    }
+
+    sort(bds.begin( ), bds.end( ), [](const ballData& lhs, const ballData& rhs) {
+       return lhs.hit_t < rhs.hit_t;
+    });
+
+    struct paddleData {
+        float dis_temp;
+        float dis;
+        float d_y = 0.f;
+        bool isAssigned = false;
+    };
+
+    std::vector<paddleData> pds(allPaddles.size() / 2);
+
+    for (auto bd: bds) {
+        for (size_t i = 0; i != allPaddles.size() / 2; i++) {
+            if (!pds[i].isAssigned)
+                pds[i].dis_temp = bd.hit_y - allPaddles[i].transform->position.y;
+        }
+        size_t j = 3; float min_dis  = INFINITY;
+        for (size_t i = 0; i < allPaddles.size() / 2; i++) {
+            glow::info() << "dis " << abs(pds[i].dis_temp);
+            if (abs(pds[i].dis_temp) < min_dis) {
+                j = i; min_dis = pds[i].dis_temp;
+            }
+        }
+        if (j != 3) {
+            pds[j].d_y = bd.hit_y;
+            glow::info() << "bd.hit_y " << bd.hit_y;
+            glow::info() << "bd.hit_t " << bd.hit_t;
+            glow::info() << "which paddle " << j;
+            pds[j].dis = pds[j].dis_temp;
+            pds[j].isAssigned = true;
+            pds[j].dis_temp = INFINITY;
+        }
+
+    }
+
+    for (size_t i = 0; i < allPaddles.size() / 2; i++) {
+        if (pds[i].d_y < 1) {
+            glow::info() << "which idle " << i;
+            pds[i].d_y = params.fieldHeight / 2;
+            pds[i].dis = params.fieldHeight / 2 - allPaddles[i].transform->position.y;
+        }
+    }
+
+    auto dis = pds[paddleIdx].dis;
+    glow::info() << "this paddle " << paddleIdx;
+    glow::info() << "d_y " << pds[paddleIdx].d_y;
+    glow::info() << "real_y " << allPaddles[paddleIdx].transform->position.y;
+
+    auto a = glm::sign(dis) * maxAccel;
+    if (glm::abs(paddle.transform->velocity.y + a * elapsedSeconds) > glm::sqrt(2 * a * dis))
+        a = -a;
+
+    // adjust acceleration if close enough so that the paddle stops
+    if (glm::abs(dis) < 0.05*paddle.shape->halfExtent.y) {
+        a = - glm::pow2(paddle.transform->velocity.y) / (2 * dis);
+    }
+
+    glow::info();
+
+    return a;
 
     /// ============= STUDENT CODE END =============
 }
