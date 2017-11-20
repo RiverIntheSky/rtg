@@ -104,7 +104,11 @@ float ai::task2a(size_t paddleIdx,
 
     // adjust acceleration if close enough so that the paddle stops
     if (glm::abs(dis) < 0.1*paddle.shape->halfExtent.y) {
-        a = - glm::pow2(paddle.transform->velocity.y) / (2 * dis);
+        if (dis != 0.f) {
+            a = - glm::pow2(paddle.transform->velocity.y) / (2 * dis);
+        } else {
+            a = -paddle.transform->velocity.y/elapsedSeconds;
+        }
     }
     return a;
 
@@ -166,8 +170,12 @@ float ai::task2b(size_t paddleIdx,
         a = -a;
 
     // adjust acceleration if close enough so that the paddle stops
-    if (glm::abs(dis) < 0.1*paddle.shape->halfExtent.y) {
-        a = - glm::pow2(paddle.transform->velocity.y) / (2 * dis);
+    if (glm::abs(dis) < 0.2*paddle.shape->halfExtent.y) {
+        if (dis != 0.f) {
+            a = - glm::pow2(paddle.transform->velocity.y) / (2 * dis);
+        } else {
+            a = -paddle.transform->velocity.y/elapsedSeconds;
+        }
     }
     return a;
 
@@ -224,25 +232,19 @@ float ai::task2c(size_t paddleIdx,
             reflected_v = {-ball.transform->velocity.x, -ball.transform->velocity.y};
         }
 
-        float r_y = params.fieldHeight -  ball.shape->radius;
-
         int cases = -1;
         float t, d_y;
         glm::vec2 g;
         do {
             if (cases > 1) {
-//                d_y = paddle.transform->position.y;
                 d_y = hit_y;
-                glow::info() << "failed" ;
                 break;
             }
             // desired velocity direction to hit the opposite center
-//            glm::vec2 d_v = normalize(glm::vec2(params.fieldWidth, params.fieldHeight/2*(1+2*cases) - 2*cases*ball.shape->radius) - glm::vec2(hit_x, hit_y));
-            glm::vec2 d_v = normalize(glm::vec2(params.fieldWidth, r_y*(1+2*cases) - 2*cases*ball.shape->radius) - glm::vec2(hit_x, hit_y));
+            glm::vec2 d_v = normalize(glm::vec2(params.fieldWidth, params.fieldHeight/2*(1+2*cases) - 2*cases*ball.shape->radius) - glm::vec2(hit_x, hit_y));
 
             // guiding direction
             g = - reflected_v + 2 * dot(reflected_v, d_v) * d_v;
-            glow::info() << "g " << normalize(g);
 
             // relative hit position on the paddle
             t = ((g / g.x).y + 1) / 2;
@@ -263,7 +265,11 @@ float ai::task2c(size_t paddleIdx,
 
     // adjust acceleration if close enough so that the paddle stops
     if (glm::abs(dis) < 0.1*paddle.shape->halfExtent.y) {
-        a = - glm::pow2(paddle.transform->velocity.y) / (2 * dis);
+        if (dis != 0.f) {
+            a = - glm::pow2(paddle.transform->velocity.y) / (2 * dis);
+        } else {
+            a = -paddle.transform->velocity.y/elapsedSeconds;
+        }
     }
 
     return a;
@@ -295,8 +301,6 @@ float ai::task3(size_t paddleIdx,
     /// ============= STUDENT CODE BEGIN =============
 
     auto maxAccel = params.paddleMaxAcceleration;
-//    std::vector<float> hit_t_(balls.size());
-//    std::vector<float> hit_y_(balls.size());
 
     struct ballData {
         float hit_t;
@@ -360,15 +364,19 @@ float ai::task3(size_t paddleIdx,
         }
     }
 
-    auto meanPos = std::accumulate(oppositePaddle.begin(), oppositePaddle.end(), 0) / oppositePaddle.size();
+//    auto meanPos = std::accumulate(oppositePaddle.begin(), oppositePaddle.end(), 0) / oppositePaddle.size();
+    float sum_pos = 0.f;
+    std::for_each(oppositePaddle.rbegin(), oppositePaddle.rend(), [&](int n) { sum_pos += n; });
+    float meanPos = sum_pos / allPaddles.size() * 2;
 
     glow::info() << "meanPos" << meanPos;
 
-    if (meanPos < params.fieldHeight / 3 ) {
+    if (meanPos < params.fieldHeight / 4) {
         r_y = params.fieldHeight - ball.shape->radius;
     } else {
         r_y = ball.shape->radius;
     }
+    r_y = ball.shape->radius;
 
     for (auto bd: bds) {
         int cases = -1;
@@ -379,7 +387,7 @@ float ai::task3(size_t paddleIdx,
                 break;
             }
             // desired velocity direction to hit the opposite side
-            glm::vec2 d_v = normalize(glm::vec2(params.fieldWidth, r_y*(1+2*cases) - 2*cases*ball.shape->radius) - glm::vec2(bd.hit_x, bd.hit_y));
+            glm::vec2 d_v = normalize(glm::vec2(params.fieldWidth, r_y + 2*cases*(params.fieldHeight-2*ball.shape->radius)) - glm::vec2(bd.hit_x, bd.hit_y));
 
             // guiding direction
             g = - b.reflected_v + 2 * dot(b.reflected_v, d_v) * d_v;
@@ -442,8 +450,12 @@ float ai::task3(size_t paddleIdx,
         a = -a;
 
     // adjust acceleration if close enough so that the paddle stops
-    if (glm::abs(dis) < 0.05*paddle.shape->halfExtent.y) {
-        a = - glm::pow2(paddle.transform->velocity.y) / (2 * dis);
+    if (glm::abs(dis) < 0.1*paddle.shape->halfExtent.y) {
+        if (dis != 0.f) {
+            a = - glm::pow2(paddle.transform->velocity.y) / (2 * dis);
+        } else {
+            a = -paddle.transform->velocity.y/elapsedSeconds;
+        }
     }
 
     glow::info();
