@@ -224,59 +224,37 @@ float ai::task2c(size_t paddleIdx,
             reflected_v = {-ball.transform->velocity.x, -ball.transform->velocity.y};
         }
 
+        float r_y = params.fieldHeight -  ball.shape->radius;
+
         int cases = -1;
         float t, d_y;
+        glm::vec2 g;
         do {
             if (cases > 1) {
-                d_y = paddle.transform->position.y;
+//                d_y = paddle.transform->position.y;
+                d_y = hit_y;
+                glow::info() << "failed" ;
                 break;
             }
             // desired velocity direction to hit the opposite center
-            glm::vec2 d_v = normalize(glm::vec2(params.fieldWidth, params.fieldHeight/2*(1+2*cases) - 2*cases*ball.shape->radius) - glm::vec2(hit_x, hit_y));
+//            glm::vec2 d_v = normalize(glm::vec2(params.fieldWidth, params.fieldHeight/2*(1+2*cases) - 2*cases*ball.shape->radius) - glm::vec2(hit_x, hit_y));
+            glm::vec2 d_v = normalize(glm::vec2(params.fieldWidth, r_y*(1+2*cases) - 2*cases*ball.shape->radius) - glm::vec2(hit_x, hit_y));
 
             // guiding direction
-            glm::vec2 g = - reflected_v + 2 * dot(reflected_v, d_v) * d_v;
+            g = - reflected_v + 2 * dot(reflected_v, d_v) * d_v;
+            glow::info() << "g " << normalize(g);
 
             // relative hit position on the paddle
             t = ((g / g.x).y + 1) / 2;
 
             // position that the paddle should move to
             d_y = hit_y - 2 * paddle.shape->halfExtent.y * t + paddle.shape->halfExtent.y;
-
             cases++;
 
-        } while (abs(2 * t - 1) > 1 || d_y < paddle.shape->halfExtent.y || d_y > params.fieldHeight - paddle.shape->halfExtent.y);
+        } while (glm::abs(glm::atan(g.y, g.x)) > glm::pi<float>()/4 || d_y < paddle.shape->halfExtent.y || d_y > params.fieldHeight - paddle.shape->halfExtent.y);
+        glow::info() << cases;
 
         dis = d_y - paddle.transform->position.y;
-
-//        // desired velocity direction to hit the opposite center
-//        glm::vec2 d_v = normalize(glm::vec2(params.fieldWidth, params.fieldHeight/2) - glm::vec2(hit_x, hit_y));
-
-//        // guiding direction
-//        glm::vec2 g = - reflected_v + 2 * dot(reflected_v, d_v) * d_v;
-
-//        // relative hit position on the paddle
-//        auto t = ((g / g.x).y + 1) / 2;
-
-
-
-//        // if not possible, try reflection
-//        if (abs(2 * t - 1) > 1 || d_y < paddle.shape->halfExtent.y || d_y > params.fieldHeight - paddle.shape->halfExtent.y) {
-//            d_v = normalize(glm::vec2(params.fieldWidth, params.fieldHeight/2*3 - 2*ball.shape->radius) - glm::vec2(hit_x, hit_y));
-//            g = - reflected_v + 2 * dot(reflected_v, d_v) * d_v;
-//            t = ((g / g.x).y + 1) / 2;
-//            d_y = hit_y - 2 * paddle.shape->halfExtent.y * t + paddle.shape->halfExtent.y;
-//        }
-//        if (abs(2 * t - 1) > 1 || d_y < paddle.shape->halfExtent.y || d_y > params.fieldHeight - paddle.shape->halfExtent.y) {
-//            d_v = normalize(glm::vec2(params.fieldWidth, - params.fieldHeight/2 + 2*ball.shape->radius) - glm::vec2(hit_x, hit_y));
-//            g = - reflected_v + 2 * dot(reflected_v, d_v) * d_v;
-//            t = ((g / g.x).y + 1) / 2;
-//            d_y = hit_y - 2 * paddle.shape->halfExtent.y * t + paddle.shape->halfExtent.y;
-//        }
-
-//        if (abs(2 * t - 1) > 1 || d_y < paddle.shape->halfExtent.y || d_y > params.fieldHeight - paddle.shape->halfExtent.y)
-//            d_y = paddle.transform->position.y;
-//        dis = d_y - paddle.transform->position.y;
     }
 
     auto a = glm::sign(dis) * maxAccel;
@@ -323,74 +301,132 @@ float ai::task3(size_t paddleIdx,
     struct ballData {
         float hit_t;
         float hit_y;
+        float hit_x;
+        glm::vec2 reflected_v;
     } b;
 
     std::vector<ballData> bds;
+    Ball ball = balls.front();
 
     for (auto ball: balls) {
         glow::info() << "how many balls" << ball.transform->velocity.x;
         if(ball.transform->velocity.x < 0) {
-            auto hit_x = paddle.transform->position.x + ball.shape->radius + paddle.shape->halfExtent.x;
-            b.hit_t = (hit_x - ball.transform->position.x) / ball.transform->velocity.x;
-
-            // compute hit_y
-            b.hit_y = ball.transform->position.y + ball.transform->velocity.y * b.hit_t;
-
-            auto period = 2 * params.fieldHeight - 4 * ball.shape->radius;
-            while (b.hit_y > (period + ball.shape->radius))
-                b.hit_y -= period;
-            while (b.hit_y < ball.shape->radius)
-                b.hit_y += period;
-
-//            glm::vec2 reflected_v = {-ball.transform->velocity.x, ball.transform->velocity.y};
-            if (b.hit_y > (period/2 + ball.shape->radius)) {
-                b.hit_y = period + 2 * ball.shape->radius - b.hit_y;
-//                reflected_v = {-ball.transform->velocity.x, -ball.transform->velocity.y};
-            }
-            bds.push_back(b);
+            b.hit_x = paddle.transform->position.x + ball.shape->radius + paddle.shape->halfExtent.x;
+            b.hit_t = (b.hit_x - ball.transform->position.x) / ball.transform->velocity.x;
+            b.reflected_v = {-ball.transform->velocity.x, ball.transform->velocity.y};
+        } else {
+            b.hit_x = allPaddles[4].transform->position.x - ball.shape->radius - paddle.shape->halfExtent.x;
+            b.hit_t = (2 * b.hit_x - ball.transform->position.x - paddle.transform->position.x - ball.shape->radius - paddle.shape->halfExtent.x) / ball.transform->velocity.x;
+            b.reflected_v = -ball.transform->velocity;
         }
+        // compute hit_y
+        b.hit_y = ball.transform->position.y + ball.transform->velocity.y * b.hit_t;
+
+        auto period = 2 * params.fieldHeight - 4 * ball.shape->radius;
+        while (b.hit_y > (period + ball.shape->radius))
+            b.hit_y -= period;
+        while (b.hit_y < ball.shape->radius)
+            b.hit_y += period;
+        if (b.hit_y > (period/2 + ball.shape->radius)) {
+            b.hit_y = period + 2 * ball.shape->radius - b.hit_y;
+            b.reflected_v = {b.reflected_v.x, -b.reflected_v.y};
+        }
+        bds.push_back(b);
     }
 
     sort(bds.begin( ), bds.end( ), [](const ballData& lhs, const ballData& rhs) {
        return lhs.hit_t < rhs.hit_t;
     });
 
+    if (bds.front().hit_t < 0.f) {
+        debugColor = {0.5f,0.5f,0.f};
+    }
+
+
     struct paddleData {
         float dis_temp;
         float dis;
         float d_y = 0.f;
-        bool isAssigned = false;
     };
 
     std::vector<paddleData> pds(allPaddles.size() / 2);
+    std::vector<float> oppositePaddle;
+    float t, r_y, d_y;
+    glm::vec2 g;
+
+    for (size_t i = 0; i != allPaddles.size(); i++) {
+        if (allPaddles[i].owner != paddle.owner) {
+            oppositePaddle.push_back(allPaddles[i].transform->position.y);
+        }
+    }
+
+    auto meanPos = std::accumulate(oppositePaddle.begin(), oppositePaddle.end(), 0) / oppositePaddle.size();
+
+    glow::info() << "meanPos" << meanPos;
+
+    if (meanPos < params.fieldHeight / 3 ) {
+        r_y = params.fieldHeight - ball.shape->radius;
+    } else {
+        r_y = ball.shape->radius;
+    }
 
     for (auto bd: bds) {
-        for (size_t i = 0; i != allPaddles.size() / 2; i++) {
-            if (!pds[i].isAssigned)
-                pds[i].dis_temp = bd.hit_y - allPaddles[i].transform->position.y;
+        int cases = -1;
+        do {
+            if (cases > 1) {
+                d_y = bd.hit_y;
+                glow::info() << "failed";
+                break;
+            }
+            // desired velocity direction to hit the opposite side
+            glm::vec2 d_v = normalize(glm::vec2(params.fieldWidth, r_y*(1+2*cases) - 2*cases*ball.shape->radius) - glm::vec2(bd.hit_x, bd.hit_y));
+
+            // guiding direction
+            g = - b.reflected_v + 2 * dot(b.reflected_v, d_v) * d_v;
+
+            // relative hit position on the paddle
+            t = ((g / g.x).y + 1) / 2;
+
+            // position that the paddle should move to
+            d_y = bd.hit_y - 2 * paddle.shape->halfExtent.y * t + paddle.shape->halfExtent.y;
+
+            cases++;
+//            glow::info() << "g " << normalize(g);
+//            glow::info() << "atan " << glm::abs(glm::atan(g.y, g.x));
+//            glow::info() << "d_y " << d_y;
+
+
+        } while (glm::abs(glm::atan(g.y, g.x)) > glm::pi<float>()/4 || d_y < paddle.shape->halfExtent.y || d_y > params.fieldHeight - paddle.shape->halfExtent.y);
+
+
+        for (size_t i = 0; i != allPaddles.size(); i++) {
+            if (allPaddles[i].owner == paddle.owner) {
+                if (pds[i].d_y < 1)
+                    pds[i].dis_temp = d_y - allPaddles[i].transform->position.y;
+            }
         }
-        size_t j = 3; float min_dis  = INFINITY;
+        size_t j = 3; float min_dis  = params.fieldHeight;
         for (size_t i = 0; i < allPaddles.size() / 2; i++) {
-            glow::info() << "dis " << abs(pds[i].dis_temp);
+//            glow::info() << "dis " << abs(pds[i].dis_temp);
             if (abs(pds[i].dis_temp) < min_dis) {
-                j = i; min_dis = pds[i].dis_temp;
+//                glow::info() << i << " smaller";
+                j = i; min_dis = abs(pds[i].dis_temp);
             }
         }
         if (j != 3) {
-            pds[j].d_y = bd.hit_y;
-            glow::info() << "bd.hit_y " << bd.hit_y;
+            pds[j].d_y = d_y;
+            glow::info() << "d_y " << d_y;
             glow::info() << "bd.hit_t " << bd.hit_t;
             glow::info() << "which paddle " << j;
             pds[j].dis = pds[j].dis_temp;
-            pds[j].isAssigned = true;
-            pds[j].dis_temp = INFINITY;
+            pds[j].dis_temp = params.fieldHeight;
         }
 
     }
 
     for (size_t i = 0; i < allPaddles.size() / 2; i++) {
         if (pds[i].d_y < 1) {
-            glow::info() << "which idle " << i;
+//            glow::info() << "which idle " << i;
             pds[i].d_y = params.fieldHeight / 2;
             pds[i].dis = params.fieldHeight / 2 - allPaddles[i].transform->position.y;
         }

@@ -531,6 +531,8 @@ void Assignment03::updateBallSystem(float elapsedSeconds)
         transform->acceleration = {dir * mParams.ballAcceleration, 0.0f};
 
         // velocity is capped by bounce dampening
+
+//        transform->velocity.x = 300.f*glm::sign(transform->velocity.x);
     }
 }
 

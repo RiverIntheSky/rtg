@@ -39,7 +39,7 @@ struct Parameters
     // - a point was scored
     float multiBallCooldown = 0.0f;
 
-    // Maximum paddle acceleration
+    // Maximum _7 acceleration
     float paddleMaxAcceleration = 10000.0f;
     // Paddle velocity is dampened after each collision
     float paddleCollisionDampening = 0.5f;

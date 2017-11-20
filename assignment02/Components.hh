@@ -20,7 +20,6 @@ GLOW_SHARED(struct, ShapeComponent);
 GLOW_SHARED(struct, RenderComponent);
 GLOW_SHARED(struct, BallComponent);
 GLOW_SHARED(struct, PaddleComponent);
-GLOW_SHARED(struct, AIComponent);
 
 /**
  * Base Component struct
@@ -53,10 +52,6 @@ struct TransformComponent : Component
     glm::vec2 position;
     // current velocity
     glm::vec2 velocity;
-    // current acceleration
-    glm::vec2 acceleration;
-    // air resistance, a -= v * linearDrag
-    float linearDrag = 0.0f;
 };
 
 // Marks this entity as "participating in collisions"
@@ -136,10 +131,4 @@ struct HalfPlaneShapeComponent : ShapeComponent
     // normal points away from colliding half plane
     // i.e. a point x is inside this shape iff: dot(x - transform->position, normal) <= 0
     glm::vec2 normal;
-};
-
-// Makes the connected entity AI-controlled
-struct AIComponent : Component
-{
-    using Component::Component; //< "import" the constructor of Component
 };
