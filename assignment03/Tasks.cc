@@ -295,8 +295,6 @@ float ai::task3(size_t paddleIdx,
     /// ============= STUDENT CODE BEGIN =============
 
     auto maxAccel = params.paddleMaxAcceleration;
-//    std::vector<float> hit_t_(balls.size());
-//    std::vector<float> hit_y_(balls.size());
 
     struct ballData {
         float hit_t;
@@ -391,9 +389,6 @@ float ai::task3(size_t paddleIdx,
             d_y = bd.hit_y - 2 * paddle.shape->halfExtent.y * t + paddle.shape->halfExtent.y;
 
             cases++;
-//            glow::info() << "g " << normalize(g);
-//            glow::info() << "atan " << glm::abs(glm::atan(g.y, g.x));
-//            glow::info() << "d_y " << d_y;
 
 
         } while (glm::abs(glm::atan(g.y, g.x)) > glm::pi<float>()/4 || d_y < paddle.shape->halfExtent.y || d_y > params.fieldHeight - paddle.shape->halfExtent.y);
