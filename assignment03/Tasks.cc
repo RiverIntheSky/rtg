@@ -144,6 +144,7 @@ float ai::task2b(size_t paddleIdx,
     float dis;
 
     if(ball.transform->velocity.x > 0) {
+        // if no ball is coming, move to center
         dis = params.fieldHeight/2 - paddle.transform->position.y;
     } else {
 
@@ -254,7 +255,6 @@ float ai::task2c(size_t paddleIdx,
             cases++;
 
         } while (glm::abs(glm::atan(g.y, g.x)) > glm::pi<float>()/4 || d_y < paddle.shape->halfExtent.y || d_y > params.fieldHeight - paddle.shape->halfExtent.y);
-        glow::info() << cases;
 
         dis = d_y - paddle.transform->position.y;
     }
@@ -299,88 +299,88 @@ float ai::task3(size_t paddleIdx,
     ///     - you may take a look at simpleAI(). It should be easy to beat if you've done 2a-2c.
     ///
     /// ============= STUDENT CODE BEGIN =============
+
     auto maxAccel = params.paddleMaxAcceleration;
 
-        struct ballData {
-            float hit_t;
-            float hit_y;
-            float hit_x;
-            glm::vec2 reflected_v;
-        } b;
+    struct ballData {
+        float hit_t;
+        float hit_y;
+        float hit_x;
+        float d_y;
+        glm::vec2 reflected_v;
+        std::vector<float> t;
+    } b;
 
-        std::vector<ballData> bds;
-        Ball ball = balls.front();
+    std::vector<ballData> bds;
+    Ball ball = balls.front();
 
-        for (auto ball: balls) {
-            glow::info() << "how many balls" << ball.transform->velocity.x;
-            if(ball.transform->velocity.x < 0) {
-                b.hit_x = paddle.transform->position.x + ball.shape->radius + paddle.shape->halfExtent.x;
-                b.hit_t = (b.hit_x - ball.transform->position.x) / ball.transform->velocity.x;
-                b.reflected_v = {-ball.transform->velocity.x, ball.transform->velocity.y};
-            } else {
-                b.hit_x = allPaddles[4].transform->position.x - ball.shape->radius - paddle.shape->halfExtent.x;
-                b.hit_t = (2 * b.hit_x - ball.transform->position.x - paddle.transform->position.x - ball.shape->radius - paddle.shape->halfExtent.x) / ball.transform->velocity.x;
-                b.reflected_v = -ball.transform->velocity;
-            }
-            // compute hit_y
-            b.hit_y = ball.transform->position.y + ball.transform->velocity.y * b.hit_t;
-
-            auto period = 2 * params.fieldHeight - 4 * ball.shape->radius;
-            while (b.hit_y > (period + ball.shape->radius))
-                b.hit_y -= period;
-            while (b.hit_y < ball.shape->radius)
-                b.hit_y += period;
-            if (b.hit_y > (period/2 + ball.shape->radius)) {
-                b.hit_y = period + 2 * ball.shape->radius - b.hit_y;
-                b.reflected_v = {b.reflected_v.x, -b.reflected_v.y};
-            }
-            bds.push_back(b);
+    for (auto ball: balls) {
+        if(ball.transform->velocity.x < 0) {
+            b.hit_x = paddle.transform->position.x + ball.shape->radius + paddle.shape->halfExtent.x;
+            b.hit_t = (b.hit_x - ball.transform->position.x) / ball.transform->velocity.x;
+            b.reflected_v = {-ball.transform->velocity.x, ball.transform->velocity.y};
+        } else {
+            b.hit_x = allPaddles[4].transform->position.x - ball.shape->radius - paddle.shape->halfExtent.x;
+            b.hit_t = (2 * b.hit_x - ball.transform->position.x - paddle.transform->position.x - ball.shape->radius - paddle.shape->halfExtent.x) / ball.transform->velocity.x;
+            b.reflected_v = -ball.transform->velocity;
         }
+        b.hit_y = ball.transform->position.y + ball.transform->velocity.y * b.hit_t;
 
-        sort(bds.begin( ), bds.end( ), [](const ballData& lhs, const ballData& rhs) {
-           return lhs.hit_t < rhs.hit_t;
-        });
-
-        if (bds.front().hit_t < 0.f) {
-            debugColor = {0.5f,0.5f,0.f};
+        auto period = 2 * params.fieldHeight - 4 * ball.shape->radius;
+        while (b.hit_y > (period + ball.shape->radius))
+            b.hit_y -= period;
+        while (b.hit_y < ball.shape->radius)
+            b.hit_y += period;
+        if (b.hit_y > (period/2 + ball.shape->radius)) {
+            b.hit_y = period + 2 * ball.shape->radius - b.hit_y;
+            b.reflected_v = {b.reflected_v.x, -b.reflected_v.y};
         }
+        bds.push_back(b);
+    }
 
+    sort(bds.begin( ), bds.end( ), [](const ballData& lhs, const ballData& rhs) {
+        return lhs.hit_t < rhs.hit_t;
+    });
 
-        struct paddleData {
-            float dis_temp;
-            float t_temp;
-            float dis;
-            float d_y = 0.f;
-        };
+//    while (bds.size() > 3) {
+//        bds.pop_back();
+//    }
 
-        std::vector<paddleData> pds(allPaddles.size() / 2);
-        std::vector<float> oppositePaddle;
-        float t, r_y, d_y;
-        glm::vec2 g;
+    struct paddleData {
+        float dis_temp;
+        float t_temp;
+        float dis;
+        float d_y = 0.f;
+    };
 
-        for (size_t i = 0; i != allPaddles.size(); i++) {
-            if (allPaddles[i].owner != paddle.owner) {
-                oppositePaddle.push_back(allPaddles[i].transform->position.y);
-            }
+    std::vector<paddleData> pds(allPaddles.size() / 2);
+    std::vector<float> oppositePaddle;
+    float t, r_y, d_y;
+    glm::vec2 g;
+
+    for (size_t i = 0; i != allPaddles.size(); i++) {
+        if (allPaddles[i].owner != paddle.owner) {
+            oppositePaddle.push_back(allPaddles[i].transform->position.y);
         }
+    }
 
     //    auto meanPos = std::accumulate(oppositePaddle.begin(), oppositePaddle.end(), 0) / oppositePaddle.size();
-        float sum_pos = 0.f;
-        std::for_each(oppositePaddle.rbegin(), oppositePaddle.rend(), [&](int n) { sum_pos += n; });
-        float meanPos = sum_pos / allPaddles.size() * 2;
+    float sum_pos = 0.f;
+    std::for_each(oppositePaddle.rbegin(), oppositePaddle.rend(), [&](int n) { sum_pos += n; });
+    float meanPos = sum_pos / allPaddles.size() * 2;
 
-        if (meanPos < params.fieldHeight / 3) {
-            r_y = params.fieldHeight - ball.shape->radius;
-        } else {
-            r_y = ball.shape->radius;
-        }
+    // direct the ball to each right corner
+    if (meanPos < params.fieldHeight / 3) {
+        r_y = params.fieldHeight - ball.shape->radius;
+    } else {
+        r_y = ball.shape->radius;
+    }
 
     for (auto bd: bds) {
         int cases = -1;
         do {
             if (cases > 1) {
-                d_y = bd.hit_y;
-                glow::info() << "failed";
+                bd.d_y = bd.hit_y;
                 break;
             }
             // desired velocity direction to hit the opposite side
@@ -393,50 +393,77 @@ float ai::task3(size_t paddleIdx,
             t = ((g / g.x).y + 1) / 2;
 
             // position that the paddle should move to
-            d_y = bd.hit_y - 2 * paddle.shape->halfExtent.y * t + paddle.shape->halfExtent.y;
-
+            bd.d_y = bd.hit_y - 2 * paddle.shape->halfExtent.y * t + paddle.shape->halfExtent.y;
             cases++;
-        } while (glm::abs(glm::atan(g.y, g.x)) > glm::pi<float>()/5 || d_y < paddle.shape->halfExtent.y || d_y > params.fieldHeight - paddle.shape->halfExtent.y);
+        } while (glm::abs(glm::atan(g.y, g.x)) > glm::pi<float>()/5 || bd.d_y < paddle.shape->halfExtent.y || bd.d_y > params.fieldHeight - paddle.shape->halfExtent.y);
 
 
+        // assign the ball to the paddle that reaches the objective position first
+        for (size_t i = 0; i != allPaddles.size()/2; i++) {
 
-        for (size_t i = 0; i != allPaddles.size(); i++) {
-            if (allPaddles[i].owner == paddle.owner) {
-                if (true) {
-                    pds[i].dis_temp = d_y - allPaddles[i].transform->position.y;
-                    pds[i].t_temp = 0.f;
-                    auto t1 = glm::abs(allPaddles[i].transform->velocity.y / maxAccel);
-                    auto y1 = glm::pow2(allPaddles[i].transform->velocity.y) / (2 * maxAccel);
-                    if (glm::dot(pds[i].dis_temp, allPaddles[i].transform->velocity.y) < 0.f) {
-                        pds[i].t_temp += t1;
-                        pds[i].dis_temp = glm::abs(pds[i].dis_temp) + y1;
-                        pds[i].t_temp += glm::sqrt(pds[i].dis_temp / maxAccel) * 2;
-                    } else if (y1 > glm::abs(pds[i].dis_temp)) {
-                        pds[i].t_temp += t1;
-                    } else {
-                        pds[i].t_temp -= t1;
-                        pds[i].dis_temp = glm::abs(pds[i].dis_temp) + y1;
-                        pds[i].t_temp += glm::sqrt(pds[i].dis_temp / maxAccel) * 2;
-                    }
-                    glow::info() << pds[i].t_temp;
-                }
+            pds[i].dis_temp = d_y - allPaddles[i].transform->position.y;
+            float t = 0.f;
+            auto t1 = glm::abs(allPaddles[i].transform->velocity.y / maxAccel);
+            auto y1 = glm::pow2(allPaddles[i].transform->velocity.y) / (2 * maxAccel);
+            if (glm::dot(pds[i].dis_temp, allPaddles[i].transform->velocity.y) < 0.f) {
+                t += t1;
+                pds[i].dis_temp = glm::abs(pds[i].dis_temp) + y1;
+                t += glm::sqrt(pds[i].dis_temp / maxAccel) * 2;
+            } else if (y1 > glm::abs(pds[i].dis_temp)) {
+                t += t1;
+            } else {
+                t -= t1;
+                pds[i].dis_temp = glm::abs(pds[i].dis_temp) + y1;
+                t += glm::sqrt(pds[i].dis_temp / maxAccel) * 2;
             }
+            bd.t.push_back(t);
         }
-        size_t j = 3; float min_t = std::numeric_limits<float>::max();
-        for (size_t i = 0; i < allPaddles.size() / 2; i++) {
-            if (abs(pds[i].t_temp) < min_t) {
-                j = i; min_t = abs(pds[i].t_temp);
-            }
-        }
-        if (j != 3 && pds[j].d_y < 1.f) {
-            pds[j].d_y = d_y;
-            pds[j].dis = d_y - allPaddles[j].transform->position.y;
-        }
+//        size_t j = 3; float min_t = std::numeric_limits<float>::max();
+//        for (size_t i = 0; i < allPaddles.size() / 2; i++) {
+//            if (abs(pds[i].t_temp) < min_t) {
+//                j = i; min_t = abs(pds[i].t_temp);
+//            }
+//        }
+
+//        if (j != 3 && pds[j].d_y < 1.f) {
+//            pds[j].d_y = d_y;
+//            pds[j].dis = d_y - allPaddles[j].transform->position.y;
+//        }
 
     }
 
+    for (auto bd: bds) {
+        std::vector<int> onlyOne;
+        for (int i = 0; i < 3; i++) {
+            if (pds[i].d_y < 1.f && bd.t[i] < bd.hit_t)
+                onlyOne.push_back(i);
+        }
+        // only one paddle can hit the ball;
+        if (onlyOne.size == 1) {
+            if (pds[onlyOne.front()].d_y < 1.f) {
+                pds[j].d_y = bd.d_y;
+                pds[j].dis = d_y - allPaddles[j].transform->position.y;
+            }
+        }
+    }
+
+    for (auto bd: bds) {
+        size_t j = 3; float min_t = std::numeric_limits<float>::max();
+        for (size_t i = 0; i < allPaddles.size() / 2; i++) {
+            if (abs(bd.t[i]) < min_t && pds[i].d_y < 1.f) {
+                j = i; min_t = abs(bd.t[i]);
+            }
+        }
+
+        if (j != 3) {
+            pds[j].d_y = d_y;
+            pds[j].dis = d_y - allPaddles[j].transform->position.y;
+        }
+    }
+
+    // is the paddle is not assigned to any ball, move to center
     for (size_t i = 0; i < allPaddles.size() / 2; i++) {
-        if (pds[i].d_y < 1) {
+        if (pds[i].d_y < 1.f) {
             pds[i].d_y = params.fieldHeight / 2;
             pds[i].dis = params.fieldHeight / 2 - allPaddles[i].transform->position.y;
         }
@@ -457,10 +484,7 @@ float ai::task3(size_t paddleIdx,
         }
     }
 
-    glow::info();
-
     return a;
-
 
     /// ============= STUDENT CODE END =============
 }
